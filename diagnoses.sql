@@ -7,3 +7,4 @@ CREATE TABLE Diagnoses (
         FOREIGN KEY (astronaut_id)
         REFERENCES Astronauts(id)  
 );
+
