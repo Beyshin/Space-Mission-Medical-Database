@@ -1,4 +1,5 @@
-CREATE TABLE Astronauts (
+-- ASTRONAUTS
+CREATE TABLE Astronauts ( 
     id INTEGER PRIMARY KEY,
     first_name VARCHAR(30) NOT NULL,
     last_name VARCHAR(30) NOT NULL,
