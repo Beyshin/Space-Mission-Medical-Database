@@ -1,0 +1,5 @@
+CREATE TABLE Affliction (
+    id INTEGER PRIMARY KEY,
+    name VARCHAR2(50) NOT NULL,
+    type VARCHAR2(50) NOT NULL
+);
