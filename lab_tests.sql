@@ -2,7 +2,7 @@ CREATE TABLE lab_tests(
 	id INTEGER PRIMARY KEY,
 	date_of_test DATE NOT NULL,
 	description VARCHAR2(255),
-	is_valid BOOLEAN NOT NULL,
+	is_valid NUMBER(1) NOT NULL,
 	type VARCHAR2(20) NOT NULL,
     astronaut_id INTEGER NOT NULL, 
     doctor_id INTEGER NOT NULL,    
