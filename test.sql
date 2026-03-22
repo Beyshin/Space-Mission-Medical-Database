@@ -17,3 +17,13 @@ SELECT first_name, n.name, b_value, result,  low,high, unit FROM astronauts a
 JOIN lab_tests l ON (l.astronaut_id = a.id) 
 JOIN blood_analysis b ON (b.id = l.id) JOIN norms n ON 
 (b.parameter_code = n.parameter_code);
+
+
+CREATE VIEW results_summary AS
+SELECT first_name, n.name, b_value, result,  low,high, unit FROM astronauts a 
+JOIN lab_tests l ON (l.astronaut_id = a.id) 
+JOIN blood_analysis b ON (b.id = l.id) JOIN norms n ON 
+(b.parameter_code = n.parameter_code);
+
+
+SELECT * FROM results_summary;

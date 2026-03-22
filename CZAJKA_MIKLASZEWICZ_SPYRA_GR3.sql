@@ -13,6 +13,8 @@ DROP TABLE Diagnoses CASCADE CONSTRAINTS;
 DROP TABLE Measurements CASCADE CONSTRAINTS;
 DROP TABLE Astronauts CASCADE CONSTRAINTS;
 DROP TABLE Afflictions CASCADE CONSTRAINTS;
+DROP TABLE Specializations CASCADE CONSTRAINTS;
+DROP TABLE DoctorSpecializations CASCADE CONSTRAINTS;
 DROP VIEW results_summary;
 
 
@@ -25,13 +27,13 @@ CREATE TABLE Afflictions (
 -- ASTRONAUTS
 CREATE TABLE Astronauts ( 
     astronaut_id INTEGER PRIMARY KEY,
-    first_name VARCHAR(30) NOT NULL,
-    last_name VARCHAR(30) NOT NULL,
-    gender VARCHAR(10) CHECK (gender IN ('M', 'F', 'Other')),
-    blood_group VARCHAR(30) NOT NULL,
+    first_name VARCHAR2(30) NOT NULL,
+    last_name VARCHAR2(30) NOT NULL,
+    gender VARCHAR2(10) CHECK (gender IN ('M', 'F', 'Other')),
+    blood_group VARCHAR2(30) NOT NULL,
     date_of_birth DATE,
-    height DECIMAL(5,2) CHECK (height > 140.00 AND height < 220.00),
-    weight DECIMAL(5,2) CHECK (weight > 50.00 AND weight < 100.00)
+    height NUMBER(5,2) CHECK (height > 140.00 AND height < 220.00),
+    weight NUMBER(5,2) CHECK (weight > 50.00 AND weight < 100.00)
 );
 
 CREATE TABLE Laboratories (
@@ -44,10 +46,23 @@ CREATE TABLE doctors(
 	first_name VARCHAR2(30) NOT NULL,
     last_name VARCHAR2(30) NOT NULL,
 	gender VARCHAR2(5) CHECK (gender in ('M', 'F', 'Other')),
-	specialization VARCHAR2(30) NOT NULL,
     laboratory_id INTEGER,
 	constraint fk_lab FOREIGN KEY (laboratory_id) REFERENCES laboratories(laboratory_id)
 );
+
+CREATE TABLE Specializations (
+    specialization_id INTEGER PRIMARY KEY,
+    name VARCHAR2(50) NOT NULL UNIQUE
+);
+
+CREATE TABLE DoctorSpecializations (
+    doctor_id INTEGER,
+    specialization_id INTEGER,
+    PRIMARY KEY (doctor_id, specialization_id),
+    CONSTRAINT fk_ds_doctor FOREIGN KEY (doctor_id) REFERENCES doctors(doctor_id),
+    CONSTRAINT fk_ds_spec FOREIGN KEY (specialization_id) REFERENCES Specializations(specialization_id)
+);
+
 
 
 CREATE TABLE lab_tests(
@@ -121,6 +136,11 @@ CREATE TABLE AstronautAfflictions (
 
 -- 1. TABELE GŁÓWNE I SŁOWNIKI
 
+INSERT INTO Specializations (specialization_id, name) VALUES (1, 'Diagnostician');
+INSERT INTO Specializations (specialization_id, name) VALUES (2, 'Space Medicine');
+INSERT INTO Specializations (specialization_id, name) VALUES (3, 'Biology');
+INSERT INTO Specializations (specialization_id, name) VALUES (4, 'Neurology');
+
 INSERT INTO Afflictions (affliction_id, name, type) VALUES (1, 'Space Motion Sickness', 'Neurological');
 INSERT INTO Afflictions (affliction_id, name, type) VALUES (2, 'Bone Density Loss', 'Musculoskeletal');
 INSERT INTO Afflictions (affliction_id, name, type) VALUES (3, 'Muscle Atrophy', 'Musculoskeletal');
@@ -144,19 +164,27 @@ INSERT INTO Norms (parameter_code, name, low, high, unit) VALUES ('CAL', 'Calciu
 
 -- 2. TABELE ZALEŻNE
 
-INSERT INTO doctors (doctor_id, first_name, last_name, gender, specialization, laboratory_id) 
-VALUES (1, 'Gregory', 'House', 'M', 'Diagnostician', 2);
-INSERT INTO doctors (doctor_id, first_name, last_name, gender, specialization, laboratory_id) 
-VALUES (2, 'Leonard', 'McCoy', 'M', 'Space Medicine', 1);
-INSERT INTO doctors (doctor_id, first_name, last_name, gender, specialization, laboratory_id) 
-VALUES (3, 'Beverly', 'Crusher', 'F', 'Biology', 3);
+INSERT INTO doctors (doctor_id, first_name, last_name, gender, laboratory_id) 
+VALUES (1, 'Gregory', 'House', 'M', 2);
+INSERT INTO DoctorSpecializations (doctor_id, specialization_id) VALUES (1, 1);
+INSERT INTO DoctorSpecializations (doctor_id, specialization_id) VALUES (1, 4);
+
+
+INSERT INTO doctors (doctor_id, first_name, last_name, gender, laboratory_id) 
+VALUES (2, 'Leonard', 'McCoy', 'M', 1);
+INSERT INTO DoctorSpecializations (doctor_id, specialization_id) VALUES (2, 2);
+
+INSERT INTO doctors (doctor_id, first_name, last_name, gender, laboratory_id) 
+VALUES (3, 'Beverly', 'Crusher', 'F', 3);
+INSERT INTO DoctorSpecializations (doctor_id, specialization_id) VALUES (3, 4);
+
 
 INSERT INTO Diagnoses (diagnose_id, astronaut_id, date_of_diagnose, description) 
 VALUES (1, 1, TO_DATE('2023-11-01', 'YYYY-MM-DD'), 'Mild space motion sickness after docking.');
 INSERT INTO Diagnoses (diagnose_id, astronaut_id, date_of_diagnose, description) 
 VALUES (2, 2, TO_DATE('2023-11-15', 'YYYY-MM-DD'), 'Excellent health condition.');
 INSERT INTO Diagnoses (diagnose_id, astronaut_id, date_of_diagnose, description) 
-VALUES (3, 3, TO_DATE('2023-10-20', 'YYYY-MM-DD'), 'Early signs of calcium depletion in bones.'););
+VALUES (3, 3, TO_DATE('2023-10-20', 'YYYY-MM-DD'), 'Early signs of calcium depletion in bones.');
 
 INSERT INTO AstronautAfflictions (astronaut_id, affliction_id) VALUES (1, 1);
 INSERT INTO AstronautAfflictions (astronaut_id, affliction_id) VALUES (3, 2);
@@ -230,7 +258,6 @@ CREATE INDEX idx_tests_date ON lab_tests(date_of_test);
 
 
 -- Indeksy na kolumnach tekstowych (wyszukiwanie po specjalizacji / nazwisku)
-CREATE INDEX idx_doc_spec ON doctors(specialization);
 CREATE INDEX idx_astro_name ON Astronauts(last_name, first_name);
 
 -- Indeks unikatowy (kod parametru ma sie nie powtowrzyc)
@@ -240,8 +267,21 @@ CREATE UNIQUE INDEX idx_norm_name ON Norms(name);
 CREATE OR REPLACE VIEW results_summary AS
 SELECT a.first_name, a.last_name, n.name AS parameter, b.b_value, b.result, n.low, n.high, n.unit 
 FROM Astronauts a 
-JOIN lab_tests l ON (l.astronaut_id = a.astronaut_id) 
-JOIN blood_analysis b ON (b.labtest_id = l.labtest_id) 
-JOIN Norms n ON (b.parameter_code = n.parameter_code);
+JOIN lab_tests l USING (astronaut_id)
+JOIN blood_analysis b USING (labtest_id)
+JOIN Norms n USING (parameter_code);
+
+
+
+CREATE OR REPLACE VIEW neurologists AS
+SELECT d.first_name, d.last_name, s.name 
+FROM Doctors d
+JOIN DoctorSpecializations ds ON (d.doctor_id = ds.doctor_id)
+JOIN Specializations s ON (ds.specialization_id = s.specialization_id)
+WHERE s.name = 'Neurology';
+
 
 COMMIT;
+
+
+SELECT * FROM neurologists;
